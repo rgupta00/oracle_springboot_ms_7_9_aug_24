@@ -1,5 +1,12 @@
-    Overview of Micro Services architecture Springboot features Kafka (1)
-	================================================================
+Overview of Micro Services architecture Springboot features Kafka (1)
+================================================================
+
+Trainer intro:
+Rajeev gupta
+https://www.linkedin.com/in/rajeevguptajavatrainer/
+
+
+https://www.youtube.com/playlist?list=PLv2-IhRmhbySgIQo3rH8KnclTSOYAp2xG
 
 Day -1
 
