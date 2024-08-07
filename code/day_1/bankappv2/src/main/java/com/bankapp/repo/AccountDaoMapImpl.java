@@ -11,8 +11,8 @@ public class AccountDaoMapImpl implements AccountDao {
 	private Map<Integer, Account> accounts = new HashMap<>();
 
 	public AccountDaoMapImpl() {
-		accounts.put(1, new Account(1, "raj", BigDecimal.valueOf(560000.00)));
-		accounts.put(2, new Account(2, "ekta", BigDecimal.valueOf(760000.00)));
+		accounts.put(1, new Account(1, "raj", BigDecimal.valueOf(1000.00)));
+		accounts.put(2, new Account(2, "ekta", BigDecimal.valueOf(1000.00)));
 	}
 
 	@Override

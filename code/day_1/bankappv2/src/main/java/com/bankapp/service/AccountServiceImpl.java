@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.bankapp.exceptions.BankAccountNotFoundException;
 import com.bankapp.repo.Account;
 import com.bankapp.repo.AccountDao;
 import com.bankapp.repo.AccountDaoDbImpl;
@@ -29,7 +30,10 @@ public class AccountServiceImpl implements AccountService{
 
 	@Override
 	public Account getById(int id) {
-		return accountDao.getById(id);
+		Account account= accountDao.getById(id);
+		if(account==null)
+			throw new BankAccountNotFoundException("account with id "+ id +" is not found");
+		return account;
 	}
 
 	@Override

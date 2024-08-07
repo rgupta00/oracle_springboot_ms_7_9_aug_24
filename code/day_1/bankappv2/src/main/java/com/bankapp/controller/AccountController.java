@@ -4,8 +4,14 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bankapp.dto.DepositDto;
+import com.bankapp.dto.TransferDto;
+import com.bankapp.dto.WithdrawDto;
 import com.bankapp.repo.Account;
 import com.bankapp.service.AccountService;
 
@@ -18,13 +24,45 @@ public class AccountController {
 	public AccountController(AccountService accountService) {
 		this.accountService = accountService;
 	}
-	@GetMapping(path = "hello")
-	public String hello() {
-		return "welcome all java champs!";
-	}
+	
 	//get all the accounts : json data
 	@GetMapping(path="accounts")
 	public List<Account> getAll(){
 		return accountService.getAll();
 	}
+
+	//get an particular account
+	//how to return correct status code, how to give error in better way: gracefull ex handing
+	@GetMapping(path="accounts/{id}")
+	public Account getById(@PathVariable int id) {
+		return accountService.getById(id);
+	}
+	
+	//transfer, how json convert to dto(java ob): parser: jackson parsor
+	//i need to trigger that parser
+	@PostMapping(path="accounts/transfer")
+	public String transfer(@RequestBody  TransferDto dto) {
+		accountService.transfer(dto.getFromId(), dto.getToId(), dto.getAmount());
+		return "fund is transfred successfully";
+	}
+	
+	//deposit
+	@PostMapping(path="accounts/deposit")
+	public String deposit(@RequestBody  DepositDto dto) {
+		accountService.deposit(dto.getAccId(), dto.getAmount());
+		return "fund is deposit successfully";
+	}
+	
+	//withdraw
+	
+	@PostMapping(path="accounts/withdraw")
+	public String withdraw(@RequestBody  WithdrawDto dto) {
+		accountService.withdraw(dto.getAccId(), dto.getAmount());
+		return "fund is withdrawn successfully";
+	}
+	
+	//update
+	
+	//add account
+	
 }
