@@ -21,6 +21,8 @@ import com.bankapp.dto.WithdrawDto;
 import com.bankapp.repo.Account;
 import com.bankapp.service.AccountService;
 
+import jakarta.validation.Valid;
+
 @RestController
 public class AccountController {
 
@@ -77,7 +79,7 @@ public class AccountController {
 	
 	//add account
 	@PostMapping(path="accounts")
-	public ResponseEntity<String> addAccount(@RequestBody Account account) {
+	public ResponseEntity<String> addAccount(@RequestBody @Valid Account account) {
 		accountService.addAccount(account);
 		return ResponseEntity.status(HttpStatus.CREATED).body("new account is created");
 	}
