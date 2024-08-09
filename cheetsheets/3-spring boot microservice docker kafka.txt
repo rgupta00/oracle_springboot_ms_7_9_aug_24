@@ -1,0 +1,442 @@
+
+Day 3:
+==========
+* spring cloud introduction and examples
+* docker , docker for java developer
+* messaging: kafka
+
+
+
+
+step 4: create config server:
+--------------------------
+Choose : lombok,config server,actuator
+
+apply 
+-----
+@EnableConfigServer to the bootstrap class
+
+application.yml
+----------------
+server:
+  port: 8071
+spring:
+  application:
+    name: configserver
+  cloud:
+    config:
+      server:
+        git:
+          uri: file:///C:/configfiles
+          clone-on-start: true
+          default-label: master
+
+
+now try:
+---------
+http://localhost:8071/accounts/default
+http://localhost:8071/loans/default
+http://localhost:8071/cards/default
+
+
+
+Step 5: read property files from config server
+-----------------------------------------------
+1. change in every project add: config client dependency
+
+2. now add configuration
+spring:
+  config:
+    import: optional:configserver:http://localhost:8071
+	
+http://localhost:8080/api/contact-info
+
+
+3. what if config property changes?
+
+@RefreshScope on top of the restcontroller
+
+in client application use refresh endpoint
+
+http://localhost:8080/actuator/refresh
+
+
+
+
+
+
+
+Step 6: Configure eureka server:
+-------------------------------
+create new project with: eureka server, config client, actuator
+
+
+1. apply annotation on bootstrap class
+@EnableEurekaServer
+
+2. url pattern
+http://localhost:8070/
+
+3. application.yml configuration for eureka server
+--------------------------
+server:
+  port: 8070
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    fetch-registry: false
+    register-with-eureka: false
+    service-url:
+      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
+
+spring:
+  application:
+    name: "eurekaserver"
+  config:
+    import: "optional:configserver:http://localhost:8071/"
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+
+4. configure eureka client in all  the projects accounts, cards and loans
+--------------------------------------------------------------------------
+ add eureka client dep to all projects
+ 
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8070/eureka/
+	  
+
+5. now check all service must be registed with eureka server
+
+6. now replace hard coded url in Openfeign service to logical names and run the examples
+	give logical name of service 
+@FeignClient("loans")
+
+
+
+step 7.gateway routing and cross cutting concern in 
+microservicve using "spring cloud gateway"
+-----------------------------------------------
+step 1:
+
+choose eureka client, config server client, actuator, api gateway
+<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-gateway</artifactId>
+</dependency>
+
+property file configuration:
+--------------------------
+step 2:
+management:
+  endpoint:
+    gateway:
+      enabled: true
+
+
+spring:
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+		  
+Java configuration give more flexiblity to define routes:
+---------------------------------------------------
+
+@Bean
+    public RouteLocator busycoderRouteConfig(RouteLocatorBuilder routeLocatorBuilder) {
+        return routeLocatorBuilder.routes()
+                .route(p -> p
+                        .path("/busycoder/accounts/**")
+                        .filters( f -> f.rewritePath("/busycoder/accounts/(?<segment>.*)","/${segment}")
+                                .addResponseHeader("X-Response-Time", LocalDateTime.now().toString()))
+                        .uri("lb://ACCOUNTS"))
+                .route(p -> p
+                        .path("/busycoder/loans/**")
+                        .filters( f -> f.rewritePath("/busycoder/loans/(?<segment>.*)","/${segment}")
+                                .addResponseHeader("X-Response-Time", LocalDateTime.now().toString()))
+                        .uri("lb://LOANS"))
+                .route(p -> p
+                        .path("/busycoder/cards/**")
+                        .filters( f -> f.rewritePath("/busycoder/cards/(?<segment>.*)","/${segment}")
+                                .addResponseHeader("X-Response-Time", LocalDateTime.now().toString()))
+                        .uri("lb://CARDS")).build();
+    }
+
+Configuring global filter:
+---------------------------
+
+@Component
+public class LoggingFilter implements GlobalFilter {
+	private Logger logger = LoggerFactory.getLogger(LoggingFilter.class);
+	@Override
+	public Mono<Void> filter(ServerWebExchange exchange, 
+			GatewayFilterChain chain) {
+		logger.info("Path of the request received -> {}", exchange.getRequest().getPath());
+		return chain.filter(exchange);
+	}
+
+}
+
+
+
+configuration.yml
+--------------------
+server:
+  port: 8072
+spring:
+  config:
+    import: optional:configserver:http://localhost:8071
+  application:
+    name: gatewayserver
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8070/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+  endpoint:
+    gateway:
+      enabled: true
+    health:
+      probes:
+        enabled: true
+
+
+
+
+step 7.Configure resilence 4j to bank application
+-----------------------------------------------
+We can apply circuitbreaker pattern to api gateway
+and to indidual microservice
+
+
+Applying circuitbreaker to api gateway 
+----------------------------------
+step 1: add depdendency to the app
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
+		</dependency>
+		
+setp 2: config
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        permitted-number-of-calls-in-half-open-state: 2
+        failure-rate-threshold: 50 #percentage
+        wait-duration-in-open-state: 10s
+		
+step 3:
+ .route(p -> p
+ .path("/busycoder/accounts/**")
+  .filters( f -> f.rewritePath("/busycoder/accounts/(?<segment>.*)","/${segment}")
+   .addResponseHeader("X-Response-Time", LocalDateTime.now().toString())
+     .circuitBreaker(config -> config.setName("accountCircuitBreaker")
+      .setFallbackUri("forward:/contactSupport")))
+      .uri("lb://ACCOUNTS"))
+
+Observe circuitBreaker design pattern:
+						
+http://localhost:8072/actuator/circuitbreakers
+http://localhost:8072/actuator/circuitbreakerevents?name=accountCircuitBreaker
+
+now put a breakpoint to the contact-info endpoint of account service
+504 status code
+TimeoutException: Did not observe any item or terminal signal within 1000ms in 'circuitBreaker'
+
+run many time "status": 503,"error": "Service Unavailable",
+
+Step 4: creating fallback controller:
+
+@RestController
+public class FallbackController {
+    @RequestMapping("/contactSupport")
+    public Mono<String> contactSupport() {
+        return Mono.just("An error occurred. Please try after some time or contact support team!!!");
+    }
+}
+
+
+Implementing circuitBreaker pattern in the account microservice:
+----------------------------------------------------------------
+integration circuitBreaker with feign client
+
+step 1: add dep to account ms
+
+<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+</dependency>
+		
+step 2:
+spring:
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        permitted-number-of-calls-in-half-open-state: 2
+        failure-rate-threshold: 50 #percentage
+        wait-duration-in-open-state: 10s
+		
+now we have to define fallback for feign client
+--------------------------------------------
+@FeignClient(name = "CARDS", fallback = CardFallBack.class)
+public interface CardServiceProxy {
+    @GetMapping(path = "api/fetch")
+    public CardDto findByMobileNumber(@RequestParam(name="mobile") String mobile);
+}
+
+@Component
+public class CardFallBack implements CardServiceProxy{
+    @Override
+    public CardDto findByMobileNumber(String mobile) {
+        return new CardDto();
+    }
+}
+@Component
+public class LoanFallBack implements LoanServiceProxy{
+    @Override
+    public LoanDto getByMobile(String mobile) {
+        return new LoanDto();
+    }
+}
+
+
+@FeignClient(name = "LOANS", fallback = LoanFallBack.class)
+public interface LoanServiceProxy {
+    @GetMapping(path = "api/fetch")
+    public LoanDto getByMobile(@RequestParam(name="mobile") String mobile);
+}
+
+Now observe the circuitBreaker urls
+
+http://localhost:8080/actuator
+http://localhost:8080/actuator/circuitbreakerevents
+
+Now stop loan ms and observe the behaviour of the application
+
+
+
+Http timeout configuration:
+------------------------------
+sometime service is very slow and we will not get immediate response
+ex: run contact-info endpoint with breakpoint
+it keep waiting for the response, a thread is block for the response
+
+how to overcome? we can define timeout configuration:
+
+if we try same with api gateway we get different response due to 
+
+.circuitBreaker(config -> config.setName("accountCircuitBreaker")
+ .setFallbackUri("forward:/contactSupport")))
+ with default timeout configuration of 1sec
+ 
+ how how to customized it? add configuration to the gateway service
+ 
+ spring:
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+          lower-case-service-id: true
+      httpclient:
+        connect-timeout: 1000
+        response-timeout: 2s
+		
+retry pattern to the pattern to api gateway:
+----------------------------------------
+
+	.route(p -> p
+    .path("/busycoder/loans/**")
+    .filters( f -> f.rewritePath("/busycoder/loans/(?<segment>.*)","/${segment}")
+     .addResponseHeader("X-Response-Time", LocalDateTime.now().toString())
+      .retry(retryConfig -> retryConfig.setRetries(3)
+                                        .setMethods(HttpMethod.GET)
+                                        .setBackoff(Duration.ofMillis(100),Duration.ofMillis(1000),2,true)))
+                        .uri("lb://LOANS"))					
+
+
+
+
+
+
+@RestController
+public class CircuitBreakerController {
+	
+	private Logger logger = LoggerFactory.getLogger(CircuitBreakerController.class);
+	
+	@GetMapping("/sample-api")
+	//@Retry(name = "sample-api", fallbackMethod = "hardcodedResponse")
+	//@CircuitBreaker(name = "default", fallbackMethod = "hardcodedResponse")
+	//@RateLimiter(name="default")
+	@Bulkhead(name="sample-api")
+	//10s => 10000 calls to the sample api
+	public String sampleApi() {
+		logger.info("Sample api call received");
+//		ResponseEntity<String> forEntity = new RestTemplate().getForEntity("http://localhost:8080/some-dummy-url", 
+//					String.class);
+//		return forEntity.getBody();
+		return "sample-api";
+	}
+	
+	public String hardcodedResponse(Exception ex) {
+		return "fallback-response";
+	}
+}
+
+resilience4j.retry.instances.sample-api.maxRetryAttempts=5
+resilience4j.retry.instances.sample-api.waitDuration=1s
+resilience4j.retry.instances.sample-api.enableExponentialBackoff=true
+
+#resilience4j.circuitbreaker.instances.default.failureRateThreshold=90
+resilience4j.ratelimiter.instances.default.limitForPeriod=2
+resilience4j.ratelimiter.instances.default.limitRefreshPeriod=10s
+
+resilience4j.bulkhead.instances.default.maxConcurrentCalls=10
+resilience4j.bulkhead.instances.sample-api.maxConcurrentCalls=10
+

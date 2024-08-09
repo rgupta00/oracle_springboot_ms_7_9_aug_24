@@ -5,12 +5,15 @@ import com.busycoder.loans.dto.LoanDto;
 import com.busycoder.loans.services.LoanService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 @RequestMapping(path = "api")
 @RestController
 @AllArgsConstructor
+//in order to activate refresh endpoint: 
+@RefreshScope
 public class LoanController {
     private final LoanService loanService;
     private final InfoDto infoDto;
