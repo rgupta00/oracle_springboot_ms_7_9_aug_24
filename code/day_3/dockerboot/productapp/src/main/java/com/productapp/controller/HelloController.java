@@ -14,6 +14,6 @@ public class HelloController {
 
     @GetMapping(path = "hello-world")
     public String hello(){
-        return instanceInformationService.retrieveInstanceInfo()+": "+ "productapp "+ "v3";
+        return instanceInformationService.retrieveInstanceInfo()+": "+ "productapp "+ "v1 - oracle";
     }
 }
